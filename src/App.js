@@ -42,9 +42,8 @@ class CardTimer extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      seconds: null,
-      active: false,
-      initValue: null
+      seconds: props.time || null,
+      active: props.timerIsActive || false
     }
   }
   render() { return <p style={cardTimerStyle}>{this.state.seconds}</p> }
@@ -54,7 +53,7 @@ class CardTimer extends Component {
       () => {
         this.setState(prevState => {
           let timeIsOut = prevState.seconds < 1;
-          if (timeIsOut) { clearInterval(self.timerId) }
+          if (timeIsOut) { clearInterval(self.timerId); this.props.onTimeOut()}
           return {
             seconds: !timeIsOut && prevState.seconds - 1,
             active: !timeIsOut
@@ -95,6 +94,7 @@ class WordCard extends Component {
         <CardTimer
           time={this.props.timeToDescribe}
           timerIsActive={this.props.timerIsActive}
+          onTimeOut={this.props.onTimeOut}
         />
         <hr></hr>
         <WordToDiscribe wordToDisribe={this.props.wordToDisribe} />
@@ -138,6 +138,7 @@ class SimilarWordsGameBoard extends Component {
             onSuccessDescribe={this.props.moves.successDescribeWord}
             onFailedDescribe={this.props.moves.failedDescribeWord}
             onReadyToDescribe={this.props.moves.readyToDesctibe}
+            onTimeOut={this.props.events.endPhase}
             onChooseTheTheme={null}
             timeToDescribe={this.props.G.timeToDescribe}
             timerIsActive={this.props.G.timerIsActive}
@@ -176,11 +177,10 @@ class SimilarWordsGameBoard extends Component {
 const SimilarWordsGame = Game({
   setup: (playerNumbers) => ({
     theme: '',
-    timeoutSeconds: 60,
     timeIsOut: false,
     timerIsActive: false,
-    timeToDescribe: 0,
-    pointsLimit: 100,
+    timeToDescribe: 10,
+    pointsLimit: 10,
     wordsToDescribe: [],
     wordToDescribe: '',
     playerIsReadyToDesctibe: false,
@@ -213,6 +213,17 @@ const SimilarWordsGame = Game({
     pause: G => ({ ...G, timerIsActive: false }),
   },
   flow: {
+    triggers: [
+      {
+        condition: (G, ctx) => {
+          return G.gameProgress[ctx.currentPlayer].gamePoints >= G.pointsLimit+2
+        },
+        action: (G, ctx) => {
+          ctx.events.endGame();
+          return {...G}
+        },
+      }
+    ],
     phases: [
       {
         name: 'choose theme',
@@ -226,14 +237,13 @@ const SimilarWordsGame = Game({
         name: 'accept ready for describe the word',
         endPhaseIf: (G, ctx) => G.playerIsReadyToDesctibe,
         allowedMoves: ['readyToDesctibe', 'pause'],
-        TurnOrder: TurnOrder.SKIP,
+        TurnOrder: TurnOrder.DEFAULT.next,
       },
       {
         name: 'describe the word',
         onPhaseBegin: (G, ctx) => ({ ...G, timeoutSeconds: 60, }),
-        endTurnIf: (G, ctx) => G.timeIsOut,
-        endPhaseIf: (G, ctx) => G.timeIsOut,
         onPhaseEnd: (G, ctx) => {
+          ctx.events.endTurn();
           return { ...G }
         },
         endGameIf: (G, ctx) => {
