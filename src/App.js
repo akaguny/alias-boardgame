@@ -79,14 +79,6 @@ class CardDescribeResultButtons extends Component {
 }
 
 class WordCard extends Component {
-  // constructor(props) {
-  //   super(props);
-  // }
-
-  // componentWillMount() {
-
-  // }
-
   render() {
     // const { error, isLoaded, wordToDisribe } = this.state;
     return <Card cardBody={
@@ -127,10 +119,10 @@ class SimilarWordsGameBoard extends Component {
       <h1>DiscribeWordBoard</h1>
       {{
         'choose theme': (
-          <p></p>
+          <p>this is themes</p>
         ),
         'accept ready for describe the word': (
-          <p></p>
+          <p>are you ready to describe?</p>
         ),
         'describe the word': (
           <WordCard
@@ -138,7 +130,10 @@ class SimilarWordsGameBoard extends Component {
             onSuccessDescribe={this.props.moves.successDescribeWord}
             onFailedDescribe={this.props.moves.failedDescribeWord}
             onReadyToDescribe={this.props.moves.readyToDesctibe}
-            onTimeOut={this.props.events.endPhase}
+            onTimeOut={()=>{
+              this.props.events.endPhase();
+              this.props.events.endTurn();
+            }}
             onChooseTheTheme={null}
             timeToDescribe={this.props.G.timeToDescribe}
             timerIsActive={this.props.G.timerIsActive}
@@ -243,7 +238,6 @@ const SimilarWordsGame = Game({
         name: 'describe the word',
         onPhaseBegin: (G, ctx) => ({ ...G, timeoutSeconds: 60, }),
         onPhaseEnd: (G, ctx) => {
-          ctx.events.endTurn();
           return { ...G }
         },
         endGameIf: (G, ctx) => {
