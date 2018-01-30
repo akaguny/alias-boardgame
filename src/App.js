@@ -95,6 +95,8 @@ class WordCard extends Component {
           onAccept={this.props.onSuccessDescribe}
           onDecline={this.props.onFailedDescribe}
         />
+        <hr></hr>
+        {this.props.winner}
       </React.Fragment>
     } />
   }
@@ -119,10 +121,32 @@ class SimilarWordsGameBoard extends Component {
       <h1>DiscribeWordBoard</h1>
       {{
         'choose theme': (
-          <p>this is themes</p>
+          <React.Fragment>
+            <form>
+              <fieldset>
+                <legend>
+                choose theme
+                  </legend>
+                  <input type="radio" onChange={this.props.moves.chooseTheme} id="firstTheme" name="firstTheme"
+                  value="most intresting that others" />
+                  <label htmlFor="firstTheme">first theme</label>
+                  <input type="radio" onChange={this.props.moves.chooseTheme} id="secondTheme" name="secondTheme"
+                  value="another intresting that others" />
+                  <label htmlFor="secondTheme">second theme</label>
+              </fieldset>
+              </form>
+          <p></p>
+          </React.Fragment>
         ),
         'accept ready for describe the word': (
+          <React.Fragment>
           <p>are you ready to describe?</p>
+          <hr></hr>
+          <CardDescribeResultButtons
+            onAccept={this.props.moves.readyToDesctibe}
+          />
+          <hr></hr>
+          </React.Fragment>
         ),
         'describe the word': (
           <WordCard
@@ -137,6 +161,7 @@ class SimilarWordsGameBoard extends Component {
             onChooseTheTheme={null}
             timeToDescribe={this.props.G.timeToDescribe}
             timerIsActive={this.props.G.timerIsActive}
+            winner={this.props.ctx.gameover}
           />
         )
       }[this.props.ctx.phase]}
@@ -185,8 +210,10 @@ const SimilarWordsGame = Game({
   }),
   moves: {
 
-    chooseTheme: (G, ctx) => {
-      return { ...G, theme: 'most intresting that others' }
+    chooseTheme: (G, ctx, action) => {
+      console.log();
+      action.preventDefault();
+      return { ...G, theme: action.target.value }
     },
     readyToDesctibe: G => {
       let gameContext = { ...G };
