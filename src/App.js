@@ -135,6 +135,7 @@ class SimilarWordsGameBoard extends Component {
   };
 
   render() {
+    let self = this;
     let content = <React.Fragment>
       <h1>DiscribeWordBoard</h1>
       {{
@@ -173,6 +174,9 @@ class SimilarWordsGameBoard extends Component {
             onFailedDescribe={this.onFailedDescribeWord}
             onReadyToDescribe={this.props.moves.readyToDesctibe}
             onTimeOut={()=>{
+              self.setState(prevState=>{
+                return rotateWordToDescribe(prevState.wordsToDescribe)
+              })
               this.props.events.endPhase();
               this.props.events.endTurn();
             }}
@@ -195,9 +199,7 @@ class SimilarWordsGameBoard extends Component {
       .then(
       words => {
         this.setState(prevState => {
-          let wordsToDescribe = words;
-          let wordToDescribe = wordsToDescribe.pop();
-          return { ...prevState, isLoaded: true, wordToDescribe, wordsToDescribe }
+          return { ...prevState, isLoaded: true, ...rotateWordToDescribe(words) }
         })
       },
       error => {
@@ -209,9 +211,7 @@ class SimilarWordsGameBoard extends Component {
       )
     } else {
       this.setState(prevState=>{
-        let wordsToDescribe = [...prevState.wordsToDescribe];
-        let wordToDescribe = wordsToDescribe.pop();
-        return { ...prevState, isLoaded: true, wordToDescribe, wordsToDescribe }
+        return { ...prevState, isLoaded: true, ...rotateWordToDescribe(prevState.wordsToDescribe) }
       })
     }
   }
