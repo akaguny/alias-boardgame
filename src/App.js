@@ -42,7 +42,7 @@ class CardTimer extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      seconds: props.time || null,
+      seconds: props.time,
       active: props.timerIsActive || false
     }
   }
@@ -55,8 +55,8 @@ class CardTimer extends Component {
           let timeIsOut = prevState.seconds < 1;
           if (timeIsOut) { clearInterval(self.timerId); this.props.onTimeOut()}
           return {
-            seconds: !timeIsOut && prevState.seconds - 1,
-            active: !timeIsOut
+            seconds: (!timeIsOut && prevState.active) ? prevState.seconds - 1:prevState.seconds,
+            active: !timeIsOut && this.props.timerIsActive
           }
         })
       }, 1000
@@ -68,10 +68,9 @@ class WordToDiscribe extends Component {
   render() { return <p style={cardWordStyle}>{this.props.wordToDisribe}</p> }
 }
 
-class CardDescribeResultButtons extends Component {
+class AcceptOrDeclineButtons extends Component {
   render() {
     return <React.Fragment>
-      <p>{this.props.agreement}</p>
       <button onClick={this.props.onAccept}>Accept</button>
       <button onClick={this.props.onDecline}>Decline</button>
     </React.Fragment>
@@ -91,7 +90,7 @@ class WordCard extends Component {
         <hr></hr>
         <WordToDiscribe wordToDisribe={this.props.wordToDisribe} />
         <hr></hr>
-        <CardDescribeResultButtons
+        <AcceptOrDeclineButtons
           onAccept={this.props.onSuccessDescribe}
           onDecline={this.props.onFailedDescribe}
         />
@@ -104,17 +103,36 @@ class WordCard extends Component {
 
 class ChooseThemeCard extends Component { }
 
-
 class SimilarWordsGameBoard extends Component {
 
   constructor(props) {
     super(props);
     this.state = {
-      error: null,
-      isLoaded: false,
-      wordsToDescribe: [...this.props.G.wordToDescribe]
+      error: this.props.G.error || null,
+      isLoaded: this.props.G.isLoaded,
+      wordsToDescribe: []
+    }
+
+    this.onDescribeWord = this.onDescribeWord.bind(this);
+    this.onSuccessDescribeWord = this.onSuccessDescribeWord.bind(this);
+    this.onFailedDescribeWord = this.onFailedDescribeWord.bind(this);
+  }
+
+  onDescribeWord = (isSuccess) => {
+    this.setState((prevState)=>{
+      return {...prevState, ...rotateWordToDescribe(prevState.wordsToDescribe)};
+    })
+    if(isSuccess) {
+      this.props.moves.successDescribeWord()
     }
   }
+
+  onSuccessDescribeWord(){
+    this.onDescribeWord(true)
+  };
+  onFailedDescribeWord(){
+    this.onDescribeWord(false)
+  };
 
   render() {
     let content = <React.Fragment>
@@ -142,7 +160,7 @@ class SimilarWordsGameBoard extends Component {
           <React.Fragment>
           <p>are you ready to describe?</p>
           <hr></hr>
-          <CardDescribeResultButtons
+          <AcceptOrDeclineButtons
             onAccept={this.props.moves.readyToDesctibe}
           />
           <hr></hr>
@@ -151,8 +169,8 @@ class SimilarWordsGameBoard extends Component {
         'describe the word': (
           <WordCard
             wordToDisribe={this.state.wordToDescribe}
-            onSuccessDescribe={this.props.moves.successDescribeWord}
-            onFailedDescribe={this.props.moves.failedDescribeWord}
+            onSuccessDescribe={this.onSuccessDescribeWord}
+            onFailedDescribe={this.onFailedDescribeWord}
             onReadyToDescribe={this.props.moves.readyToDesctibe}
             onTimeOut={()=>{
               this.props.events.endPhase();
@@ -168,18 +186,19 @@ class SimilarWordsGameBoard extends Component {
 
     </React.Fragment>;
     let loading = <p style={{ color: 'red' }}>{this.state.error || "Wait for load"}</p>
-    return !this.state.isLoaded || this.state.error ? loading : content;
+    return !this.state.isLoaded ? loading : content;
   }
-
   componentDidMount() {
     if (this.state.wordsToDescribe.length === 0) {
       fetch('http://1.lobarev.com/api/dictionary/en_easy')
       .then(res => res.json())
       .then(
       words => {
-        console.log();
-        this.setState(prevState => ({ ...prevState, wordsToDescribe: words }))
-        this.setState(prevState => ({ ...prevState, isLoaded: true, wordToDescribe: prevState.wordsToDescribe.pop(), wordsToDescribe: words }))
+        this.setState(prevState => {
+          let wordsToDescribe = words;
+          let wordToDescribe = wordsToDescribe.pop();
+          return { ...prevState, isLoaded: true, wordToDescribe, wordsToDescribe }
+        })
       },
       error => {
         this.setState({
@@ -189,9 +208,19 @@ class SimilarWordsGameBoard extends Component {
       }
       )
     } else {
-      this.setState(prevState => ({ ...prevState, wordToDescribe: prevState.wordsToDescribe.pop() }))
+      this.setState(prevState=>{
+        let wordsToDescribe = [...prevState.wordsToDescribe];
+        let wordToDescribe = wordsToDescribe.pop();
+        return { ...prevState, isLoaded: true, wordToDescribe, wordsToDescribe }
+      })
     }
   }
+}
+
+function rotateWordToDescribe(words){
+  let wordsToDescribe = [...words];
+  let wordToDescribe = wordsToDescribe.pop();
+  return {wordsToDescribe, wordToDescribe};
 }
 
 const SimilarWordsGame = Game({
@@ -201,8 +230,6 @@ const SimilarWordsGame = Game({
     timerIsActive: false,
     timeToDescribe: 10,
     pointsLimit: 10,
-    wordsToDescribe: [],
-    wordToDescribe: '',
     playerIsReadyToDesctibe: false,
     gameProgress: Array(playerNumbers).fill({}).map((item, index) => {
       return { gamePoints: 0 }
@@ -211,28 +238,21 @@ const SimilarWordsGame = Game({
   moves: {
 
     chooseTheme: (G, ctx, action) => {
-      console.log();
       action.preventDefault();
       return { ...G, theme: action.target.value }
     },
     readyToDesctibe: G => {
-      let gameContext = { ...G };
       return {
-        ...G, wordToDescribe: gameContext.wordsToDescribe.pop(),
-        playerIsReadyToDesctibe: true, timerIsActive: true, timeoutSeconds: 60
+        ...G, playerIsReadyToDesctibe: true, timerIsActive: true, timeoutSeconds: 60
       }
     },
     successDescribeWord: (G, ctx) => {
       let gameContext = { ...G };
       gameContext.gameProgress[ctx.currentPlayer] = { ...gameContext.gameProgress[ctx.currentPlayer], gamePoints: +G.gameProgress[ctx.currentPlayer].gamePoints + 1 }
-      gameContext = { ...G, wordToDescribe: gameContext.wordsToDescribe.pop() }
       return gameContext;
     },
-    failedDescribeWord: G => {
-      let gameContext = { ...G };
-      return { ...G, wordToDescribe: gameContext.wordsToDescribe.pop() }
-    },
-    pause: G => ({ ...G, timerIsActive: false }),
+    pause: G => {
+      return { ...G, timerIsActive: !G.timerIsActive }},
   },
   flow: {
     triggers: [
